@@ -6,48 +6,66 @@ This guide is written for users (data analysts, engineers) who want to pull PIRM
 ## Before You Begin
 
 - Base URL: `https://platform.cenozon.com/api/pirm/data/v1`
-- Access token: use a Personal Access Token (PAT) for scripts, notebooks, and automation.
+- Access token: use a Personal Access Token (PAT) for scripts, notebooks, and automation  
 - Your identifiers:
-  - `X-Cenozon-Client-Id`: your client GUID
-  - `X-Cenozon-Deployment-Id`: your deployment GUID
-  Ask your Cenozon administrator if you are unsure of these values.
+  - Your Cenozon Client ID / GUID
+  - Your target PIRM Deployment ID / GUID (e.g. production or test)
 
-Authentication header:
-- Personal Access Token: `prefix="Token"`
-- Bearer token: `prefix="Bearer"`
+Ask your Cenozon administrator if you are unsure of these values.
 
-## Install
-
-Install the package into your project or notebook environment (wheel or source). If you manage dependencies with Poetry, you can add the project path; otherwise, build a wheel and `pip install` it.
+**NOTE**: Bearer (JWT) authentication is also supported, however, these authentication workflows are more complex and outside of the scope of the provided examples.  Please contact Cenozon for assistance in utilizing Bearer authentication.
 
 ## Quick Start (Step‑by‑Step)
 
-```python
-from cenozon_pirm_client import AuthenticatedClient
+We recommend using [uv](https://docs.astral.sh/uv/) for python package / dependency management.
 
-client = AuthenticatedClient(
-    base_url="https://platform.cenozon.com/api/pirm/data/v1",
-    token="<YOUR_PAT>",               # Personal Access Token
-    prefix="Token",
-)
-
-# If you have a Bearer token instead:
-# from cenozon_pirm_client import AuthenticatedClient
-# client = AuthenticatedClient(
-#     base_url="https://platform.cenozon.com/api/pirm/data/v1",
-#     token="<YOUR_BEARER_TOKEN>",
-#     prefix="Bearer",
-# )
+```sh
+uv init
+uv add git+https://github.com/cenozon/cenozon-pirm-client-py
+uv add python-dotenv
 ```
 
-Optionally customize TLS verification (custom CA bundle path or `False`):
+Next, create a plaintext file called `.env` and populate it for your environment (note: do not include `<>` as part of your values; these are just placeholders):
+
+```env
+CENOZON_API_TOKEN=<Personal Access Token>
+CENOZON_CLIENT_ID=<Cenozon client id; supplied by Cenozon>
+CENOZON_DEPLOYMENT_ID=<PIRM deployment id; supplied by Cenozon>
+```
+
+And lastly, a working example which lists available Asset Manager reports within the specified PIRM deployment:
 
 ```python
-client = AuthenticatedClient(
-    base_url="https://platform.cenozon.com/api/pirm/data/v1",
-    token="<YOUR_PAT>",
-    verify_ssl=True,                  # or path to a custom CA bundle
-)
+import os
+from dotenv import load_dotenv
+from cenozon_pirm_client import AuthenticatedClient
+from cenozon_pirm_client.api.asset_manager_report import get_asset_manager
+from cenozon_pirm_client.types import UNSET
+
+def main():
+    load_dotenv()
+
+    token=os.environ.get("CENOZON_API_TOKEN")
+    client_id=os.environ.get("CENOZON_CLIENT_ID")
+    deployment_id=os.environ.get("CENOZON_DEPLOYMENT_ID")
+
+    client = AuthenticatedClient(
+        base_url="https://platform.cenozon.com/api/pirm/data/v1",
+        token=token,
+        prefix="Token",
+    )
+
+    reports = get_asset_manager.sync(
+        client=client,
+        x_cenozon_client_id=client_id,
+        x_cenozon_deployment_id=deployment_id,
+    )
+    for report in reports:
+        print(report)
+        print()
+
+if __name__ == "__main__":
+    main()
 ```
 
 ## Models at a Glance
@@ -288,9 +306,3 @@ alive = get_root.sync(
 
 ## Advanced httpx customization
 Pass `httpx_args` to the client to add logging hooks, proxies, timeouts, etc. You can also call `client.get_httpx_client()` or `client.get_async_httpx_client()` for direct access when needed.
-
-## Build / publish the client
-This project uses Poetry. Typical commands:
-- Build wheel: `poetry build -f wheel`
-- Install locally: `pip install dist/*.whl`
-- Publish: `poetry publish --build`
