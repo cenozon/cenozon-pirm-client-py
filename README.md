@@ -6,7 +6,7 @@ This guide is written for users (data analysts, engineers) who want to pull PIRM
 ## Before You Begin
 
 - Base URL: `https://platform.cenozon.com/api/pirm/data/v1`
-- Access token: use a Personal Access Token (PAT) for scripts, notebooks, and automation  
+- Access token: use a Personal Access Token (PAT) for scripts, notebooks, and automation
 - Your identifiers:
   - Your Cenozon Client ID / GUID
   - Your target PIRM Deployment ID / GUID (e.g. production or test)
@@ -21,7 +21,7 @@ We recommend using [uv](https://docs.astral.sh/uv/) for python package / depende
 
 ```sh
 uv init
-uv add git+https://github.com/cenozon/cenozon-pirm-client-py
+uv add git+https://github.com/cenozon/cenozon-pirm-client-py@v1.0.0
 uv add python-dotenv
 ```
 
