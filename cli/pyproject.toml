@@ -1,0 +1,20 @@
+[project]
+name = "cenozon-pirm-cli"
+version = "1.1.0"
+description = "Command-line interface for the Cenozon PIRM Data Gateway."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = []
+dependencies = [
+    "cenozon-pirm-client>=1.1.0",
+]
+
+[project.scripts]
+pirm-dgw = "cenozon_pirm_cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["cenozon_pirm_cli"]

@@ -1,19 +1,33 @@
-[tool.poetry]
+[project]
 name = "cenozon-pirm-client"
-version = "v1"
+version = "1.1.0"
 description = "A client library for accessing Cenozon PIRM Data Gateway API"
-authors = []
 readme = "README.md"
+requires-python = ">=3.10"
+authors = []
+dependencies = [
+    "httpx>=0.23.0,<0.29.0",
+    "attrs>=22.2.0",
+    "python-dateutil>=2.8.0,<3.0.0",
+]
+
+[project.optional-dependencies]
+# Install with:
+#   uv add 'cenozon-pirm-client[pandas]'      # pandas DataFrames
+#   uv add 'cenozon-pirm-client[excel]'       # XLSX via openpyxl
+#   uv add 'cenozon-pirm-client[databricks]'  # pandas + excel for Databricks
+#
+# The `pirm-dgw` CLI is a separate package — install it with:
+#   uv tool install 'cenozon-pirm-cli @ git+https://github.com/cenozon/cenozon-pirm-client-py.git#subdirectory=cli'
+pandas = ["pandas>=1.5"]
+excel = ["pandas>=1.5", "openpyxl>=3.1"]
+databricks = ["pandas>=1.5", "openpyxl>=3.1"]
+
+[tool.poetry]
 packages = [
     { include = "cenozon_pirm_client" },
 ]
 include = ["CHANGELOG.md", "cenozon_pirm_client/py.typed"]
-
-[tool.poetry.dependencies]
-python = "^3.10"
-httpx = ">=0.23.0,<0.29.0"
-attrs = ">=22.2.0"
-python-dateutil = "^2.8.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

@@ -1,7 +1,18 @@
 # cenozon-pirm-client
-A Python client for the Cenozon PIRM Data Gateway that lets you discover available reports, view their schemas, and securely download data as JSON, CSV, or TSV.
 
-This guide is written for users (data analysts, engineers) who want to pull PIRM data into tools like Python, Excel, or Databricks.
+A Python client for the Cenozon PIRM Data Gateway. Discover available reports, view their schemas, and securely download data as JSON, CSV, TSV, or Excel (xlsx).
+
+Designed for data analysts and engineers pulling PIRM data into Python, pandas, Databricks, or any other downstream tool.
+
+The package ships three layers:
+
+* **`PirmClient`** — an async, ergonomic wrapper that returns native Python objects, handles slug-vs-display-name normalization, streams cleanly, and offers pandas / Spark integrations.
+* **The generated OpenAPI layer** under `cenozon_pirm_client.api.*` and `cenozon_pirm_client.models.*` for callers who want the raw spec-shaped functions.
+* **`pirm-dgw`** — an opt-in command-line interface, packaged separately as `cenozon-pirm-cli`.
+
+All three are stable and have backward-compatible signatures with v1.0.0; the `PirmClient` is recommended for new code.
+
+See [CHANGELOG.md](CHANGELOG.md) for the full release notes.
 
 ## Before You Begin
 
@@ -13,296 +24,322 @@ This guide is written for users (data analysts, engineers) who want to pull PIRM
 
 Ask your Cenozon administrator if you are unsure of these values.
 
-**NOTE**: Bearer (JWT) authentication is also supported, however, these authentication workflows are more complex and outside of the scope of the provided examples.  Please contact Cenozon for assistance in utilizing Bearer authentication.
+**NOTE:** Bearer (JWT) authentication is also supported, but those workflows are more complex and outside the scope of these examples. Contact Cenozon for help wiring Bearer authentication.
 
-## Quick Start (Step‑by‑Step)
+## Install
 
-We recommend using [uv](https://docs.astral.sh/uv/) for python package / dependency management.
+Recommended: [uv](https://docs.astral.sh/uv/) for environment + dependency management.
+
+### Base library only
 
 ```sh
 uv init
-uv add git+https://github.com/cenozon/cenozon-pirm-client-py@v1.0.0
-uv add python-dotenv
+uv add 'git+https://github.com/cenozon/cenozon-pirm-client-py@v1.1.0'
 ```
 
-Next, create a plaintext file called `.env` and populate it for your environment (note: do not include `<>` as part of your values; these are just placeholders):
+*NOTE*: you should always use the *latest* published version (tag) of the package.
+
+This gives you `PirmClient`, the generated `api/*` layer, models, and types. No CLI, no pandas, no Excel reader.
+
+### Optional features — install only what you need
+
+Every integration is an opt-in extra. Pick the ones that match your use case:
+
+| Need | Install command |
+| --- | --- |
+| `report.to_pandas("csv")` and friends | `uv add 'cenozon-pirm-client[pandas] @ git+https://github.com/cenozon/cenozon-pirm-client-py.git@v1.1.0'` |
+| Excel (`.xlsx`) parsing (pulls in `openpyxl`) | `uv add 'cenozon-pirm-client[excel] @ git+https://github.com/cenozon/cenozon-pirm-client-py.git@v1.1.0'` |
+| Bundle for Databricks notebooks (pandas + Excel) | `uv add 'cenozon-pirm-client[databricks] @ git+https://github.com/cenozon/cenozon-pirm-client-py.git@v1.1.0'` |
+| `pirm-dgw` command-line tool (separate package, no library bloat) | `uv tool install 'cenozon-pirm-cli @ git+https://github.com/cenozon/cenozon-pirm-client-py.git@v1.1.0#subdirectory=cli'` |
+
+Multiple extras can be combined: `uv add 'cenozon-pirm-client[pandas,excel] @ git+...'`.
+
+The CLI is shipped as a **separate distribution** (`cenozon-pirm-cli`) so that the base library install never pollutes consumer venvs with a stray script entry. Use `uv tool install` to drop the `pirm-dgw` binary into your shell PATH globally, or `uv add` it inside a project venv if you prefer.
+
+### Credentials
+
+Configure a `.env` next to your script (no angle brackets):
 
 ```env
 CENOZON_API_TOKEN=<Personal Access Token>
 CENOZON_CLIENT_ID=<Cenozon client id; supplied by Cenozon>
 CENOZON_DEPLOYMENT_ID=<PIRM deployment id; supplied by Cenozon>
+# Optional — defaults to "production"; set to "" to suppress the env header
+CENOZON_ENVIRONMENT_TYPE=production
+# Optional — overrides the default gateway URL
+CENOZON_BASE_URL=https://platform.cenozon.com/api/pirm/data/v1
 ```
 
-And lastly, a working example which lists available Asset Manager reports within the specified PIRM deployment:
+## Quick Start (Python)
 
 ```python
-import os
-from dotenv import load_dotenv
-from cenozon_pirm_client import AuthenticatedClient
-from cenozon_pirm_client.api.asset_manager_report import get_asset_manager
-from cenozon_pirm_client.types import UNSET
+import asyncio
+from cenozon_pirm_client import PirmClient
 
-def main():
-    load_dotenv()
 
-    token=os.environ.get("CENOZON_API_TOKEN")
-    client_id=os.environ.get("CENOZON_CLIENT_ID")
-    deployment_id=os.environ.get("CENOZON_DEPLOYMENT_ID")
+async def main() -> None:
+    async with PirmClient.from_env() as pirm:
+        # Discover
+        for report in await pirm.custom_reports():
+            print(report.name, "->", report.data_uri)
 
-    client = AuthenticatedClient(
-        base_url="https://platform.cenozon.com/api/pirm/data/v1",
-        token=token,
-        prefix="Token",
-    )
+        # Pull data — display-name-friendly lookup, slug-correct under the hood
+        report = await pirm.custom_report("Master Pipeline Modified")
+        csv_bytes = await report.fetch("csv")                # raw bytes
+        text = await report.fetch_text("json")                # str
+        df = await report.to_pandas("csv")                    # pandas.DataFrame
+        await report.write_to("/tmp/pipeline.csv", "csv")     # streams to disk
 
-    reports = get_asset_manager.sync(
-        client=client,
-        x_cenozon_client_id=client_id,
-        x_cenozon_deployment_id=deployment_id,
-    )
-    for report in reports:
-        print(report)
-        print()
+        # One-shot shortcuts
+        df_ili = await pirm.custom_to_pandas("ILI", "csv")
+        xlsx = await pirm.fetch_custom("Master Pipeline Modified", "xlsx")
 
-if __name__ == "__main__":
-    main()
+
+asyncio.run(main())
 ```
 
-## Models at a Glance
-- `AvailableReport`: `report_sid`, `group_name`, `report_name`, `supports_hierarchy_columns`, `schema_uri`, `data_uri`.
-- `ReportSchema` and `ReportColumn`: column `index`, `name`, `type`, `is_nullable`.
-- `CsvStringQuoting` (for CSV): `0` automatic, `1` quote empty, `2` quote non-empty, `3` quote all strings.
-- `ProblemDetails`: standard error payload for 4xx/5xx.
+Every network method is `async def`. Run from notebooks with `await ...` directly, or wrap with `asyncio.run(...)` from scripts.
 
-## Step 1 — Find Available Reports
+## Quick Start (CLI)
 
-Asset Manager reports (all groups):
-```python
-from cenozon_pirm_client.api.asset_manager_report import get_asset_manager
-from cenozon_pirm_client.types import UNSET
+After `uv tool install 'cenozon-pirm-cli @ git+...#subdirectory=cli'`, the `pirm-dgw` command is on your PATH:
 
-reports = get_asset_manager.sync(
-    client=client,
-    x_cenozon_client_id="<client-guid>",
-    x_cenozon_deployment_id="<deployment-guid>",
-)
-# returns List[AvailableReport]
+```sh
+# Sanity
+pirm-dgw ping
+pirm-dgw whoami
+
+# Listings
+pirm-dgw list custom
+pirm-dgw list asset-manager --group my-group
+
+# Schemas
+pirm-dgw schema custom "Master Pipeline Modified"
+pirm-dgw schema asset-manager 12345
+
+# Downloads — auto-stream with a progress spinner; default output is <slug>.<format>
+pirm-dgw fetch custom "Master Pipeline Modified" -f csv -o pipeline.csv
+pirm-dgw fetch custom ili -f xlsx
+pirm-dgw fetch asset-manager 12345 -f csv --group-type network --group-sid 7
+pirm-dgw fetch custom incidents -f csv --strip-identifiers
 ```
 
-Asset Manager reports for a specific group:
-```python
-from cenozon_pirm_client.api.asset_manager_report import get_asset_manager_group_group_name
+The CLI reads the same `.env` the Python API uses (default `./.env`), or accepts every credential as a flag. Run `pirm-dgw <subcommand> --help` for the full surface. Output is plain tab-separated when stdout is piped (CI-friendly).
 
-group_reports = get_asset_manager_group_group_name.sync(
-    group_name="my-group",
-    client=client,
-    x_cenozon_client_id="<client-guid>",
-    x_cenozon_deployment_id="<deployment-guid>",
-)
-```
+## Environment Type
 
-Custom reports (deployment-wide):
-```python
-from cenozon_pirm_client.api.custom_report import get_custom
-
-custom_reports = get_custom.sync(
-    client=client,
-    x_cenozon_client_id="<client-guid>",
-    x_cenozon_deployment_id="<deployment-guid>",
-)
-```
-
-Tip: First list reports, then follow the `schema_uri` / `data_uri` in each `AvailableReport` to work with a specific report.
-
-## Step 2 — Understand the Columns (Schemas)
-
-By Asset Manager group + report name:
-```python
-from cenozon_pirm_client.api.asset_manager_report import get_asset_manager_group_group_name_schema
-
-schema = get_asset_manager_group_group_name_schema.sync(
-    group_name="my-group",
-    report_name="my-report",
-    client=client,
-    x_cenozon_client_id="<client-guid>",
-    x_cenozon_deployment_id="<deployment-guid>",
-)
-# returns ReportSchema
-```
-
-By Asset Manager report SID:
-```python
-from cenozon_pirm_client.api.asset_manager_report import get_asset_manager_report_sid_schema
-
-schema = get_asset_manager_report_sid_schema.sync(
-    report_sid=12345,
-    client=client,
-    x_cenozon_client_id="<client-guid>",
-    x_cenozon_deployment_id="<deployment-guid>",
-)
-```
-
-Custom report schema:
-```python
-from cenozon_pirm_client.api.custom_report import get_custom_report_name_schema
-
-schema = get_custom_report_name_schema.sync(
-    report_name="my-custom-report",
-    client=client,
-    x_cenozon_client_id="<client-guid>",
-    x_cenozon_deployment_id="<deployment-guid>",
-)
-```
-
-## Step 3 — Download Data (JSON, CSV, TSV)
-
-Optional hierarchy filtering lets you limit results to a portion of your network:
-- `groupType`: one of `hierarchy`, `field` (or `system`), `network`
-- `groupSid`: the identifier for the selected group
-Ask your administrator if you are unsure which values to use.
-
-Output formatting options:
-- CSV/TSV: `delimiter`, `quote`, `escape`, `quoteStrings` (0..3)
-- JSON: `compressKeys=True` produces compact “DataTable‑style” keys
-
-Note on return type: For data endpoints, the client’s `sync_detailed` variant returns a `Response` with raw bytes in `content` (the `parsed` field is `None` on success).
-
-Asset Manager by group + name:
-```python
-from cenozon_pirm_client.api.asset_manager_report import get_asset_manager_group_group_name_data_format
-from cenozon_pirm_client.models import csv_string_quoting as quoting
-
-resp = get_asset_manager_group_group_name_data_format.sync_detailed(
-    group_name="my-group",
-    format_="csv",                                  # "json", "csv", or "tsv"
-    client=client,
-    report_name="my-report",
-    group_type="network",                           # optional
-    group_sid=123,                                   # optional
-    delimiter=",", quote="\"", escape="#",        # optional CSV tweaks
-    quote_strings=quoting.CsvStringQuoting.VALUE_0,  # 0..3
-    compress_keys=False,                             # JSON output only
-    x_cenozon_client_id="<client-guid>",
-    x_cenozon_deployment_id="<deployment-guid>",
-)
-if resp.status_code == 200:
-    data_bytes = resp.content  # write to a file, parse with pandas, etc.
-else:
-    print("Request failed:", resp.status_code, resp.content)
-```
-
-Asset Manager by SID:
-```python
-from cenozon_pirm_client.api.asset_manager_report import get_asset_manager_report_sid_data_format
-
-resp = get_asset_manager_report_sid_data_format.sync_detailed(
-    report_sid=12345,
-    format_="json",
-    client=client,
-    group_type="hierarchy", group_sid=999,          # optional
-    x_cenozon_client_id="<client-guid>",
-    x_cenozon_deployment_id="<deployment-guid>",
-)
-```
-
-Custom report data:
-```python
-from cenozon_pirm_client.api.custom_report import get_custom_report_name_data_format
-
-resp = get_custom_report_name_data_format.sync_detailed(
-    report_name="my-custom-report",
-    format_="tsv",
-    client=client,
-    x_cenozon_client_id="<client-guid>",
-    x_cenozon_deployment_id="<deployment-guid>",
-)
-```
-
-### Step 4 — Open in Excel or pandas
-```python
-import io, pandas as pd
-
-resp = get_asset_manager_report_sid_data_format.sync_detailed(
-    report_sid=12345, format_="csv", client=client,
-    x_cenozon_client_id="<client-guid>", x_cenozon_deployment_id="<deployment-guid>",
-)
-df = pd.read_csv(io.BytesIO(resp.content))
-```
-
-### Large downloads (streaming)
-For very large result sets, stream to a file to avoid running out of memory:
+All requests include an `x-cenozon-environment` header. It defaults to `production`; override it per-client:
 
 ```python
-import httpx
+from cenozon_pirm_client import EnvironmentType, PirmClient
 
-headers = {
-    "x-cenozon-client-id": "<client-guid>",
-    "x-cenozon-deployment-id": "<deployment-guid>",
-}
-
-with client.get_httpx_client().stream(
-    "GET", "/asset-manager/12345/data/csv", params={}, headers=headers
-) as r, open("report.csv", "wb") as f:
-    for chunk in r.iter_bytes():
-        f.write(chunk)
+pirm = PirmClient.from_env(environment_type=EnvironmentType.STAGING)
+# or as a string: environment_type="staging"
+# pass "" to suppress the header entirely
 ```
+
+The default can also be set via the `CENOZON_ENVIRONMENT_TYPE` environment variable. The `EnvironmentType` enum mirrors the server enum exactly and accepts:
+`DEVELOPMENT`, `TEST`, `STAGING`, `PILOT`, `PRODUCTION`, `INTERNAL_ONLY`.
+
+## Strip Internal Identifier Columns
+
+Data and schema endpoints accept `strip_identifiers=True` to drop columns whose names end in `_sid`:
+
+```python
+df = await report.to_pandas("csv", strip_identifiers=True)
+```
+
+## Supported Formats
+
+`json` (default), `csv`, `tsv`, `xlsx` (alias `excel`). Use `ReportFormat` for the string constants:
+
+```python
+from cenozon_pirm_client import ReportFormat
+
+bytes_ = await report.fetch(ReportFormat.XLSX)
+```
+
+`to_pandas("xlsx")` requires the `[excel]` (or `[databricks]`) extra for the `openpyxl` reader.
+
+## Streaming Large Reports
+
+The default `PirmClient` timeout is generous (`read=None`, `connect=30s`), and `stream()` / `write_to()` push bytes through chunk-by-chunk with no intermediate buffer:
+
+```python
+async with report.stream("csv") as chunks:
+    with open("big.csv", "wb") as fh:
+        async for chunk in chunks:
+            fh.write(chunk)
+```
+
+Or one-shot to disk (cleanup-safe — partial files are removed if the stream errors):
+
+```python
+n_bytes = await report.write_to("/tmp/big.csv", "csv")
+```
+
+The CLI's `fetch` subcommand already does this with a progress indicator.
 
 ## Databricks Usage
 
-- Install the client as a cluster library (wheel or source). If needed, `pip install` from your workspace repo or artifact store.
-- Store your token and GUIDs in Databricks Secrets and retrieve them at runtime.
-- Use the full gateway path: `https://platform.cenozon.com/api/pirm/data/v1`.
-- For private networks with custom CAs, pass a CA bundle path in `verify_ssl` (avoid disabling verification).
+Install the package as a cluster library, or `%pip install` in a notebook. The `[databricks]` extra brings in pandas + openpyxl.
 
-Example (pandas + Spark):
+### From notebook secrets
+
 ```python
-import io, pandas as pd
-from cenozon_pirm_client import AuthenticatedClient
-from cenozon_pirm_client.api.asset_manager_report import get_asset_manager_report_sid_data_format
+import asyncio
+from cenozon_pirm_client import PirmClient
 
-token = dbutils.secrets.get(scope="pirm", key="api-token")
-client_guid = dbutils.secrets.get(scope="pirm", key="client-guid")
-deployment_guid = dbutils.secrets.get(scope="pirm", key="deployment-guid")
+async def load() -> None:
+    async with PirmClient.from_databricks_secrets(scope="pirm", dbutils=dbutils) as pirm:
+        df = await pirm.custom_report("Master Pipeline Modified").to_pandas("csv")
+        display(df)
+
+await load()   # in a notebook
+# or:
+# asyncio.run(load())
+```
+
+Defaults the lookup keys to `api-token`, `client-guid`, `deployment-guid`; override via `token_key=`, `client_id_key=`, `deployment_id_key=`, `environment_type_key=`. Always pass `dbutils=dbutils` from the notebook scope (notebooks inject it as a global; library code can't reach it through `globals()`).
+
+### Streaming into Spark
+
+For larger reports, stream to DBFS and read with `spark.read` — avoids materializing the full payload on the driver:
+
+```python
+sdf = await pirm.custom_report("Master Pipeline Modified").to_spark(spark, "csv")
+display(sdf)
+```
+
+Pass `via_pandas=True` to round-trip through a pandas DataFrame (driver-local; fine for small reports and required for Excel). Pass `dbfs_staging_path="/dbfs/tmp/...csv"` to control where the staging file lives.
+
+### Concurrent fetches
+
+A single `PirmClient` shares one async HTTP transport; many requests run concurrently with no extra setup:
+
+```python
+async with PirmClient.from_env() as pirm:
+    pipeline, ili, status = await asyncio.gather(
+        pirm.fetch_custom("Master Pipeline Modified", "csv"),
+        pirm.fetch_custom("ILI", "csv"),
+        pirm.status(),
+    )
+```
+
+### Optional listing cache
+
+`pirm.custom_report(name)` and `pirm.asset_manager_report(name)` re-list the gateway on every lookup by default. If you're pulling many reports from a stable deployment in one job, enable the cache:
+
+```python
+async with PirmClient.from_env(cache_listings=True) as pirm:
+    df1 = await pirm.custom_to_pandas("ILI", "csv")
+    df2 = await pirm.custom_to_pandas("Master Pipeline Modified", "csv")
+    df3 = await pirm.custom_to_pandas("Chemical Pumps", "csv")
+    # ...only one listing HTTP round-trip total
+
+    pirm.invalidate_listing_cache()  # force a refresh if needed
+```
+
+The cache is in-memory and per-instance. It's off by default to keep the wrapper safe for long-running jobs.
+
+## Hierarchy Filtering
+
+Reports with `supports_hierarchy_columns=True` accept `group_type` and `group_sid` to filter to a portion of the network:
+
+```python
+report = await pirm.custom_report("Chemical Pumps")
+df = await report.to_pandas("csv", group_type="network", group_sid=123)
+```
+
+`group_type` is one of `hierarchy`, `field` (or `system`), `network`.
+
+## Asset Manager Reports
+
+```python
+# All groups
+for r in await pirm.asset_manager_reports():
+    print(r.group_name, r.name, r.report_sid)
+
+# Single group
+group_reports = await pirm.asset_manager_reports(group="my-group")
+
+# By name (within a group, or across all groups)
+r = await pirm.asset_manager_report("Some Report", group="my-group")
+df = await r.to_pandas("csv")
+
+# Or by SID without listing
+r = pirm.asset_manager_report_by_sid(12345)
+csv_bytes = await r.fetch("csv")
+```
+
+## Error Handling
+
+```python
+from cenozon_pirm_client import PirmError, PirmHTTPError
+
+try:
+    df = await pirm.custom_report("nope").to_pandas("csv")
+except PirmHTTPError as e:
+    print(e.response.status_code, e.response.text)
+except PirmError as e:
+    print("client-side error:", e)
+```
+
+Common cases:
+
+* `401` / `403`: check your token, header GUIDs, and deployment permission.
+* `404`: report name/SID or group doesn't exist for this deployment.
+* `400`: unsupported `format` value or invalid formatting options.
+* `400 "PIRM Reporting API has not been enabled for this client"`: the server could not resolve a backend connection string for your client + environment. Confirm `environment_type` is set (it defaults to `production`), or contact your Cenozon administrator.
+
+## Using the Generated API Directly
+
+The OpenAPI-generated layer is unchanged from v1.0.0 (purely additive). Useful when you need every knob from the spec:
+
+```python
+import os
+from cenozon_pirm_client import AuthenticatedClient
+from cenozon_pirm_client.api.custom_report import (
+    get_custom,
+    get_custom_report_name_data_format,
+)
 
 client = AuthenticatedClient(
     base_url="https://platform.cenozon.com/api/pirm/data/v1",
-    token=token,                  # store PAT in a secret
+    token=os.environ["CENOZON_API_TOKEN"],
     prefix="Token",
+    # environment_type defaults to "production"; pass "" to skip
 )
 
-resp = get_asset_manager_report_sid_data_format.sync_detailed(
-    report_sid=12345, format_="csv", client=client,
-    x_cenozon_client_id=client_guid,
-    x_cenozon_deployment_id=deployment_guid,
-)
-
-pdf = pd.read_csv(io.BytesIO(resp.content))
-spark_df = spark.createDataFrame(pdf)
-display(spark_df)
-```
-
-Notes for Databricks:
-- For huge outputs, use the streaming example to write to DBFS (e.g., `/dbfs/tmp/report.csv`) and then `spark.read.csv`.
-- If your environment uses HTTP proxies, pass `httpx_args={"proxies": "http://proxy:port"}` to the client.
-
-## Service Health Check
-```python
-from cenozon_pirm_client.api.cenozon_pirm_data_gateway_service import get as get_root
-
-alive = get_root.sync(
+reports = get_custom.sync(
     client=client,
     x_cenozon_client_id="<client-guid>",
     x_cenozon_deployment_id="<deployment-guid>",
 )
-# returns "alive" on success
+
+resp = get_custom_report_name_data_format.sync_detailed(
+    report_name="master-pipeline-modified",   # path slug, not display name
+    format_="csv",
+    client=client,
+    strip_identifiers=True,
+    x_cenozon_client_id="<client-guid>",
+    x_cenozon_deployment_id="<deployment-guid>",
+)
+csv_bytes = resp.content
 ```
 
-## Errors and Troubleshooting
-- 401 or 403: Check your token, header GUIDs, and that you have permission to access the deployment.
-- 404: The report name/SID or group doesn’t exist for this deployment.
-- 400: Unsupported `format` (only `json`, `csv`, `tsv`) or invalid formatting options.
-- For data endpoints, inspect `resp.status_code` and `resp.content` (the parsed field is not used for data).
-- Still stuck? Contact your Cenozon administrator.
+The generated layer requires the **slug** (kebab-cased) as the `report_name` path parameter — see the `dataUri` returned by `get_custom`. The high-level `PirmClient` handles this for you by routing requests through the server-issued URIs.
+
+## Models at a Glance
+
+* `AvailableReport`: `report_sid`, `group_name`, `report_name`, `supports_hierarchy_columns`, `schema_uri`, `data_uri`.
+* `ReportSchema` and `ReportColumn`: column `index`, `name`, `type_`, `is_nullable`.
+* `CsvStringQuoting` (for CSV): `VALUE_0` automatic, `VALUE_1` quote empty, `VALUE_2` quote non-empty, `VALUE_3` quote all strings.
+* `ProblemDetails`: standard error payload for 4xx/5xx.
+* `EnvironmentType`: enum mirroring the server side (`DEVELOPMENT`, `TEST`, `STAGING`, `PILOT`, `PRODUCTION`, `INTERNAL_ONLY`). Pass the enum or its lowercased string equivalent.
 
 ## Advanced httpx customization
-Pass `httpx_args` to the client to add logging hooks, proxies, timeouts, etc. You can also call `client.get_httpx_client()` or `client.get_async_httpx_client()` for direct access when needed.
+
+Pass `httpx_args=...` (a dict) to `PirmClient` to set logging hooks, proxies, custom transports, etc. You can also reach `client.raw.get_async_httpx_client()` (or the sync variant) for direct access.
+
+

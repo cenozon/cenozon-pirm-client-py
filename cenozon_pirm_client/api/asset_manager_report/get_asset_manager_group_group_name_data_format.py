@@ -22,6 +22,7 @@ def _get_kwargs(
     escape: str | Unset = UNSET,
     quote_strings: CsvStringQuoting | Unset = UNSET,
     compress_keys: bool | Unset = UNSET,
+    strip_identifiers: bool | Unset = UNSET,
     x_cenozon_client_id: str | Unset = UNSET,
     x_cenozon_deployment_id: str | Unset = UNSET,
 ) -> dict[str, Any]:
@@ -53,6 +54,8 @@ def _get_kwargs(
     params["quoteStrings"] = json_quote_strings
 
     params["compressKeys"] = compress_keys
+
+    params["stripIdentifiers"] = strip_identifiers
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -121,6 +124,7 @@ def sync_detailed(
     escape: str | Unset = UNSET,
     quote_strings: CsvStringQuoting | Unset = UNSET,
     compress_keys: bool | Unset = UNSET,
+    strip_identifiers: bool | Unset = UNSET,
     x_cenozon_client_id: str | Unset = UNSET,
     x_cenozon_deployment_id: str | Unset = UNSET,
 ) -> Response[Any | ProblemDetails]:
@@ -137,6 +141,7 @@ def sync_detailed(
         escape (str | Unset):
         quote_strings (CsvStringQuoting | Unset):
         compress_keys (bool | Unset):
+        strip_identifiers (bool | Unset):
         x_cenozon_client_id (str | Unset):
         x_cenozon_deployment_id (str | Unset):
 
@@ -159,6 +164,7 @@ def sync_detailed(
         escape=escape,
         quote_strings=quote_strings,
         compress_keys=compress_keys,
+        strip_identifiers=strip_identifiers,
         x_cenozon_client_id=x_cenozon_client_id,
         x_cenozon_deployment_id=x_cenozon_deployment_id,
     )
@@ -183,6 +189,7 @@ def sync(
     escape: str | Unset = UNSET,
     quote_strings: CsvStringQuoting | Unset = UNSET,
     compress_keys: bool | Unset = UNSET,
+    strip_identifiers: bool | Unset = UNSET,
     x_cenozon_client_id: str | Unset = UNSET,
     x_cenozon_deployment_id: str | Unset = UNSET,
 ) -> Any | ProblemDetails | None:
@@ -199,6 +206,7 @@ def sync(
         escape (str | Unset):
         quote_strings (CsvStringQuoting | Unset):
         compress_keys (bool | Unset):
+        strip_identifiers (bool | Unset):
         x_cenozon_client_id (str | Unset):
         x_cenozon_deployment_id (str | Unset):
 
@@ -222,6 +230,7 @@ def sync(
         escape=escape,
         quote_strings=quote_strings,
         compress_keys=compress_keys,
+        strip_identifiers=strip_identifiers,
         x_cenozon_client_id=x_cenozon_client_id,
         x_cenozon_deployment_id=x_cenozon_deployment_id,
     ).parsed
@@ -240,6 +249,7 @@ async def asyncio_detailed(
     escape: str | Unset = UNSET,
     quote_strings: CsvStringQuoting | Unset = UNSET,
     compress_keys: bool | Unset = UNSET,
+    strip_identifiers: bool | Unset = UNSET,
     x_cenozon_client_id: str | Unset = UNSET,
     x_cenozon_deployment_id: str | Unset = UNSET,
 ) -> Response[Any | ProblemDetails]:
@@ -256,6 +266,7 @@ async def asyncio_detailed(
         escape (str | Unset):
         quote_strings (CsvStringQuoting | Unset):
         compress_keys (bool | Unset):
+        strip_identifiers (bool | Unset):
         x_cenozon_client_id (str | Unset):
         x_cenozon_deployment_id (str | Unset):
 
@@ -278,6 +289,7 @@ async def asyncio_detailed(
         escape=escape,
         quote_strings=quote_strings,
         compress_keys=compress_keys,
+        strip_identifiers=strip_identifiers,
         x_cenozon_client_id=x_cenozon_client_id,
         x_cenozon_deployment_id=x_cenozon_deployment_id,
     )
@@ -300,6 +312,7 @@ async def asyncio(
     escape: str | Unset = UNSET,
     quote_strings: CsvStringQuoting | Unset = UNSET,
     compress_keys: bool | Unset = UNSET,
+    strip_identifiers: bool | Unset = UNSET,
     x_cenozon_client_id: str | Unset = UNSET,
     x_cenozon_deployment_id: str | Unset = UNSET,
 ) -> Any | ProblemDetails | None:
@@ -316,6 +329,7 @@ async def asyncio(
         escape (str | Unset):
         quote_strings (CsvStringQuoting | Unset):
         compress_keys (bool | Unset):
+        strip_identifiers (bool | Unset):
         x_cenozon_client_id (str | Unset):
         x_cenozon_deployment_id (str | Unset):
 
@@ -340,6 +354,7 @@ async def asyncio(
             escape=escape,
             quote_strings=quote_strings,
             compress_keys=compress_keys,
+            strip_identifiers=strip_identifiers,
             x_cenozon_client_id=x_cenozon_client_id,
             x_cenozon_deployment_id=x_cenozon_deployment_id,
         )

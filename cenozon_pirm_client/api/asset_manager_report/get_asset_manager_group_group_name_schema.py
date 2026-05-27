@@ -14,6 +14,9 @@ def _get_kwargs(
     group_name: str,
     *,
     report_name: str | Unset = UNSET,
+    group_type: str | Unset = UNSET,
+    group_sid: int | Unset = UNSET,
+    strip_identifiers: bool | Unset = UNSET,
     x_cenozon_client_id: str | Unset = UNSET,
     x_cenozon_deployment_id: str | Unset = UNSET,
 ) -> dict[str, Any]:
@@ -27,6 +30,12 @@ def _get_kwargs(
     params: dict[str, Any] = {}
 
     params["reportName"] = report_name
+
+    params["groupType"] = group_type
+
+    params["groupSid"] = group_sid
+
+    params["stripIdentifiers"] = strip_identifiers
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -85,6 +94,9 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     report_name: str | Unset = UNSET,
+    group_type: str | Unset = UNSET,
+    group_sid: int | Unset = UNSET,
+    strip_identifiers: bool | Unset = UNSET,
     x_cenozon_client_id: str | Unset = UNSET,
     x_cenozon_deployment_id: str | Unset = UNSET,
 ) -> Response[ProblemDetails | ReportSchema]:
@@ -93,6 +105,9 @@ def sync_detailed(
     Args:
         group_name (str):
         report_name (str | Unset):
+        group_type (str | Unset):
+        group_sid (int | Unset):
+        strip_identifiers (bool | Unset):
         x_cenozon_client_id (str | Unset):
         x_cenozon_deployment_id (str | Unset):
 
@@ -107,6 +122,9 @@ def sync_detailed(
     kwargs = _get_kwargs(
         group_name=group_name,
         report_name=report_name,
+        group_type=group_type,
+        group_sid=group_sid,
+        strip_identifiers=strip_identifiers,
         x_cenozon_client_id=x_cenozon_client_id,
         x_cenozon_deployment_id=x_cenozon_deployment_id,
     )
@@ -123,6 +141,9 @@ def sync(
     *,
     client: AuthenticatedClient,
     report_name: str | Unset = UNSET,
+    group_type: str | Unset = UNSET,
+    group_sid: int | Unset = UNSET,
+    strip_identifiers: bool | Unset = UNSET,
     x_cenozon_client_id: str | Unset = UNSET,
     x_cenozon_deployment_id: str | Unset = UNSET,
 ) -> ProblemDetails | ReportSchema | None:
@@ -131,6 +152,9 @@ def sync(
     Args:
         group_name (str):
         report_name (str | Unset):
+        group_type (str | Unset):
+        group_sid (int | Unset):
+        strip_identifiers (bool | Unset):
         x_cenozon_client_id (str | Unset):
         x_cenozon_deployment_id (str | Unset):
 
@@ -146,6 +170,9 @@ def sync(
         group_name=group_name,
         client=client,
         report_name=report_name,
+        group_type=group_type,
+        group_sid=group_sid,
+        strip_identifiers=strip_identifiers,
         x_cenozon_client_id=x_cenozon_client_id,
         x_cenozon_deployment_id=x_cenozon_deployment_id,
     ).parsed
@@ -156,6 +183,9 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     report_name: str | Unset = UNSET,
+    group_type: str | Unset = UNSET,
+    group_sid: int | Unset = UNSET,
+    strip_identifiers: bool | Unset = UNSET,
     x_cenozon_client_id: str | Unset = UNSET,
     x_cenozon_deployment_id: str | Unset = UNSET,
 ) -> Response[ProblemDetails | ReportSchema]:
@@ -164,6 +194,9 @@ async def asyncio_detailed(
     Args:
         group_name (str):
         report_name (str | Unset):
+        group_type (str | Unset):
+        group_sid (int | Unset):
+        strip_identifiers (bool | Unset):
         x_cenozon_client_id (str | Unset):
         x_cenozon_deployment_id (str | Unset):
 
@@ -178,6 +211,9 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         group_name=group_name,
         report_name=report_name,
+        group_type=group_type,
+        group_sid=group_sid,
+        strip_identifiers=strip_identifiers,
         x_cenozon_client_id=x_cenozon_client_id,
         x_cenozon_deployment_id=x_cenozon_deployment_id,
     )
@@ -192,6 +228,9 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
     report_name: str | Unset = UNSET,
+    group_type: str | Unset = UNSET,
+    group_sid: int | Unset = UNSET,
+    strip_identifiers: bool | Unset = UNSET,
     x_cenozon_client_id: str | Unset = UNSET,
     x_cenozon_deployment_id: str | Unset = UNSET,
 ) -> ProblemDetails | ReportSchema | None:
@@ -200,6 +239,9 @@ async def asyncio(
     Args:
         group_name (str):
         report_name (str | Unset):
+        group_type (str | Unset):
+        group_sid (int | Unset):
+        strip_identifiers (bool | Unset):
         x_cenozon_client_id (str | Unset):
         x_cenozon_deployment_id (str | Unset):
 
@@ -216,6 +258,9 @@ async def asyncio(
             group_name=group_name,
             client=client,
             report_name=report_name,
+            group_type=group_type,
+            group_sid=group_sid,
+            strip_identifiers=strip_identifiers,
             x_cenozon_client_id=x_cenozon_client_id,
             x_cenozon_deployment_id=x_cenozon_deployment_id,
         )
